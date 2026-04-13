@@ -1,0 +1,58 @@
+# -*- coding: utf-8 -*-
+
+import os
+import importlib.util
+import FreeCAD as App
+import traceback
+
+try:
+	import FreeCADGui as Gui
+except Exception:
+	Gui = None
+
+
+def _load_module(module_name, file_path):
+	spec = importlib.util.spec_from_file_location(module_name, file_path)
+	if spec is None or spec.loader is None:
+		raise RuntimeError("Failed to load module: {}".format(file_path))
+	module = importlib.util.module_from_spec(spec)
+	spec.loader.exec_module(module)
+	return module
+
+
+def _find_shaped_steel_script(base_dir):
+	candidates = [
+		os.path.join(base_dir, "Shaped_steel.py"),
+		os.path.join(base_dir, "shaped_steel_fc", "Shaped_steel.py"),
+	]
+	for path in candidates:
+		if os.path.isfile(path):
+			return path
+	return None
+
+
+def run_dodo_wb_jp():
+	try:
+		base_dir = os.path.dirname(os.path.abspath(__file__))
+		shaped_steel_path = _find_shaped_steel_script(base_dir)
+		if not shaped_steel_path:
+			App.Console.PrintError("Dodo_WB_JP: Shaped_steel.py が見つかりません。\n")
+			return
+
+		if App.ActiveDocument is None:
+			App.newDocument("Dodo_WB_JP")
+
+		module = _load_module("shaped_steel_jp", shaped_steel_path)
+		module.App = App
+		if Gui is not None:
+			module.Gui = Gui
+		module.Main()
+
+		App.Console.PrintMessage("Dodo_WB_JP: JIS鋼材ダイアログを起動しました。\n")
+		App.Console.PrintMessage("ヒント: パイプは STK_A / SUS_Sch20S / SUS_Sch40 で 32A などの呼び径指定が可能です。\n")
+	except Exception:
+		App.Console.PrintError("Dodo_WB_JP: 起動中にエラーが発生しました。\n")
+		App.Console.PrintError(traceback.format_exc() + "\n")
+
+
+run_dodo_wb_jp()
